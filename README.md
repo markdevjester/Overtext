@@ -17,7 +17,7 @@
 </p>
 
 <p align="center">
-  <img src="previews/page.jpg" width="900" alt="Selected English text is replaced by its translation in place">
+  <img src="previews/page.jpg" width="900" alt="German Wikipedia with the selected paragraph translated into English in place">
 </p>
 
 ## How it works
@@ -27,7 +27,7 @@
 **Write in your language, send in another.** In any text field — a Reddit post, a chat, an email — write in your own language, select it and press **⌘E**. The text is replaced with the translation right in the field. **⌘Z** brings the original back.
 
 <p align="center">
-  <img src="previews/field.jpg" width="900" alt="Russian text in a field is replaced with English">
+  <img src="previews/field.jpg" width="900" alt="English text in a search field is replaced with Spanish">
 </p>
 
 **Names stay names.** Brand names written the way they sound — *эпстор*, *айфон*, *гитхаб* — become App Store, iPhone and GitHub instead of nonsense like "epstor". Add your own words in the menu bar icon → **My Dictionary…** (one rule per line: `how I write = how it should be`).
@@ -35,8 +35,10 @@
 **When an app doesn't say where the text is**, the translation slides out of the notch instead.
 
 <p align="center">
-  <img src="previews/notch.jpg" width="620" alt="Translation sliding out of the notch">
+  <img src="previews/notch.jpg" width="900" alt="Translation sliding out of the notch">
 </p>
+
+<sub>Screenshots show real pages from German and Spanish Wikipedia (text and images CC BY-SA 4.0) with Overtext's own card rendered on top. They are made by `Tools/SiteShots` without capturing the screen.</sub>
 
 ## Install
 

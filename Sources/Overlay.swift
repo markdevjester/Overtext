@@ -287,6 +287,7 @@ struct VisualEffect: NSViewRepresentable {
 struct OverlayView: View {
     @ObservedObject var m: OverlayModel
     var onTap: () -> Void
+    @Environment(\.colorScheme) private var scheme
 
     var body: some View {
         let notch = m.style == .notch
@@ -296,7 +297,7 @@ struct OverlayView: View {
             if notch {
                 Color.black
             } else if m.staticRender {
-                Color(nsColor: NSColor(white: 0.14, alpha: 1))
+                Color(white: scheme == .dark ? 0.14 : 0.985) // картинки для README: как материал окна
             } else {
                 VisualEffect()
                 Color(nsColor: .textBackgroundColor).opacity(0.6)
