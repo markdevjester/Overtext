@@ -42,7 +42,7 @@
 
 ## Install
 
-1. Download `Overtext-1.0.0.zip` from [Releases](https://github.com/markdevjester/Overtext/releases/latest), unzip, and move `Overtext.app` to **Applications**.
+1. Download `Overtext-1.0.1.zip` from [Releases](https://github.com/markdevjester/Overtext/releases/latest), unzip, and move `Overtext.app` to **Applications**.
 2. First launch: the app isn't notarized by Apple yet, so macOS will say it can't verify the developer. Open **System Settings → Privacy & Security**, scroll down and click **Open Anyway**.
 3. Allow Overtext in **System Settings → Privacy & Security → Accessibility** — it needs this to read the selected text and to paste the translation. Then quit and reopen it from the menu bar icon.
 4. Select some text and press **⌘E**.
