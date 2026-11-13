@@ -7,7 +7,13 @@ struct Translation: Equatable {
     let target: String
 }
 
-enum TranslateError: Error { case badResponse, empty }
+enum TranslateError: Error, Equatable {
+    case badResponse, empty
+    /// Google ответил 429/403: «слишком много автоматических запросов с вашей сети»
+    case blocked
+    /// нет сети или сервер не отвечает
+    case offline
+}
 
 /// Языки: «мой» (во что переводить чужой текст) и «второй» (во что переводить свой).
 enum Lang {
@@ -81,8 +87,28 @@ enum Translator {
         return t
     }
 
-    /// Бесплатный адрес Google Translate. Текст уходит в теле запроса, не в адресе.
+    /// Два бесплатных адреса Google Translate. Google иногда закрывает один из них для сети
+    /// пользователя (ответ 429 «your computer or network may be sending automated queries»),
+    /// а второй при этом работает. Тогда основной пропускаем полчаса. Текст уходит в теле запроса.
+    static var gtxPausedUntil = Date.distantPast
+    static let gtxPause: TimeInterval = 30 * 60
+
     static func request(_ text: String, target: String) async throws -> Translation {
+        let q = String(text.prefix(maxChars))
+        var firstError: Error?
+        if Date() >= gtxPausedUntil {
+            do { return try await requestGtx(q, target: target) }
+            catch TranslateError.blocked { gtxPausedUntil = Date().addingTimeInterval(gtxPause); firstError = TranslateError.blocked }
+            catch TranslateError.offline { throw TranslateError.offline }
+            catch { firstError = error }
+        }
+        do { return try await requestDict(q, target: target) }
+        catch TranslateError.offline { throw TranslateError.offline }
+        catch { throw (error as? TranslateError) == .blocked || (firstError as? TranslateError) == .blocked ? TranslateError.blocked : error }
+    }
+
+    /// Основной адрес: translate.googleapis.com, client=gtx.
+    static func requestGtx(_ q: String, target: String) async throws -> Translation {
         var c = URLComponents(string: "https://translate.googleapis.com/translate_a/single")!
         c.queryItems = [
             URLQueryItem(name: "client", value: "gtx"),
@@ -90,13 +116,53 @@ enum Translator {
             URLQueryItem(name: "tl", value: target),
             URLQueryItem(name: "dt", value: "t"),
         ]
-        var req = URLRequest(url: c.url!, timeoutInterval: 10)
+        return try parse(try await post(c.url!, q), target: target)
+    }
+
+    /// Запасной адрес: тот же, что у расширения Google Translate для Chrome.
+    static func requestDict(_ q: String, target: String) async throws -> Translation {
+        var c = URLComponents(string: "https://clients5.google.com/translate_a/t")!
+        c.queryItems = [
+            URLQueryItem(name: "client", value: "dict-chrome-ex"),
+            URLQueryItem(name: "sl", value: "auto"),
+            URLQueryItem(name: "tl", value: target),
+        ]
+        return try parseDict(try await post(c.url!, q), target: target)
+    }
+
+    static let offlineCodes: Set<URLError.Code> = [
+        .notConnectedToInternet, .networkConnectionLost, .cannotFindHost, .cannotConnectToHost,
+        .dnsLookupFailed, .timedOut, .dataNotAllowed, .internationalRoamingOff,
+    ]
+
+    static func post(_ url: URL, _ q: String) async throws -> Data {
+        var req = URLRequest(url: url, timeoutInterval: 10)
         req.httpMethod = "POST"
         req.setValue("application/x-www-form-urlencoded;charset=utf-8", forHTTPHeaderField: "Content-Type")
-        req.httpBody = Data(("q=" + formEncode(String(text.prefix(maxChars)))).utf8)
-        let (data, resp) = try await URLSession.shared.data(for: req)
-        guard (resp as? HTTPURLResponse)?.statusCode == 200 else { throw TranslateError.badResponse }
-        return try parse(data, target: target)
+        req.httpBody = Data(("q=" + formEncode(q)).utf8)
+        let data: Data, resp: URLResponse
+        do { (data, resp) = try await URLSession.shared.data(for: req) }
+        catch let e as URLError where offlineCodes.contains(e.code) { throw TranslateError.offline }
+        let code = (resp as? HTTPURLResponse)?.statusCode ?? 0
+        if code == 429 || code == 403 { throw TranslateError.blocked }
+        guard code == 200 else { throw TranslateError.badResponse }
+        return data
+    }
+
+    /// Ответ запасного адреса: [["перевод","en"]] (или ["перевод"], если язык задан явно).
+    static func parseDict(_ data: Data, target: String) throws -> Translation {
+        guard let root = try? JSONSerialization.jsonObject(with: data) as? [Any], let first = root.first
+        else { throw TranslateError.badResponse }
+        var text = "", source = "auto"
+        if let pair = first as? [Any] {
+            text = pair.first as? String ?? ""
+            if pair.count > 1, let s = pair[1] as? String { source = s }
+        } else if let t = first as? String {
+            text = t
+        } else { throw TranslateError.badResponse }
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { throw TranslateError.empty }
+        return Translation(text: trimmed, source: source, target: target)
     }
 
     /// Ответ: [[["перевод","оригинал",…],…], null, "en", …]

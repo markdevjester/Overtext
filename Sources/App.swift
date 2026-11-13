@@ -102,9 +102,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 }
             } catch {
                 guard gen == generation else { return }
-                overlay.showMessage(L("Не получилось перевести — проверьте интернет",
-                                      "Couldn't translate — check your connection"),
-                                    icon: "wifi.exclamationmark", hideAfter: 2.5)
+                Log.write("translate failed: \(error)")
+                switch error as? TranslateError {
+                case .offline?:
+                    overlay.showMessage(L("Нет связи с Google Translate — проверьте интернет",
+                                          "Can't reach Google Translate — check your connection"),
+                                        icon: "wifi.exclamationmark", hideAfter: 2.5)
+                case .blocked?:
+                    overlay.showMessage(L("Google временно ограничил запросы с этой сети — попробуйте через пару минут",
+                                          "Google is limiting requests from this network — try again in a few minutes"),
+                                        icon: "hourglass", hideAfter: 3.5)
+                default:
+                    overlay.showMessage(L("Не получилось перевести — попробуйте ещё раз",
+                                          "Couldn't translate — please try again"),
+                                        icon: "exclamationmark.triangle", hideAfter: 2.5)
+                }
             }
         }
     }

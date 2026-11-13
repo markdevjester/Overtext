@@ -14,6 +14,12 @@ check("склейка сегментов", t.text == "Привет, мир. Эт
 check("язык оригинала", t.source == "en")
 check("пустой ответ — ошибка", (try? Translator.parse(Data("[[],null,\"en\"]".utf8), target: "ru")) == nil)
 check("мусор — ошибка", (try? Translator.parse(Data("<html>".utf8), target: "ru")) == nil)
+// запасной адрес (clients5, dict-chrome-ex)
+let d = try! Translator.parseDict(Data("[[\"Привет\\nмир\",\"en\"]]".utf8), target: "ru")
+check("запасной: текст и язык", d.text == "Привет\nмир" && d.source == "en")
+check("запасной: без языка", (try? Translator.parseDict(Data("[\"Hola\"]".utf8), target: "es"))?.text == "Hola")
+check("запасной: страница Google «Sorry» — ошибка", (try? Translator.parseDict(Data("<html>Sorry</html>".utf8), target: "ru")) == nil)
+check("запасной: пустой перевод — ошибка", (try? Translator.parseDict(Data("[[\"  \",\"en\"]]".utf8), target: "ru")) == nil)
 
 // кодирование тела запроса
 check("кириллица кодируется", Translator.formEncode("Привет & да=1+2") == "%D0%9F%D1%80%D0%B8%D0%B2%D0%B5%D1%82%20%26%20%D0%B4%D0%B0%3D1%2B2")
@@ -50,6 +56,10 @@ if ProcessInfo.processInfo.environment["OVERTEXT_LIVE"] == "1" {
     let sem = DispatchSemaphore(value: 0)
     Task {
         do {
+            let z = try await Translator.requestDict("I don't have time today, but tomorrow works.", target: "ru")
+            print("  → запасной:", z.text, z.source)
+            check("живой: запасной адрес", z.source == "en" && !z.text.isEmpty && Translator.isMostlyCyrillic(z.text))
+            Translator.gtxPausedUntil = .distantPast
             let a = try await Translator.translate("Hi everyone, I'm the developer of this app, and it is free.", native: "ru", second: "en")
             print("  →", a.text, a.source, a.target)
             check("живой: en → ru", a.target == "ru" && a.text.contains("разработчик"))
